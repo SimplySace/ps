@@ -1,0 +1,137 @@
+use std::fs;
+use std::fs::File;
+use std::io::{self, Write};
+use std::process::Command;
+
+struct Rectangle {
+    //cmd: String,
+    psexec: String,
+}
+
+fn main() {
+    loop {
+    let baza = Rectangle {
+        //cmd: String::from("\\\\"),
+        psexec:String::from("\\C$\\windows\\psexec.exe"), 
+    };
+    println!("Введиет Hostname");
+    let mut name_pc: String = String::new();  //указываем имя ПК
+    std::io::stdin().read_line(&mut name_pc)
+        .ok()
+        .expect("Error read line!");
+    name_pc = name_pc.trim().replace("\r\n", "");
+    let m = format!("\\\\{}{}",name_pc,baza.psexec);
+    if psexec(&m) == false{
+        continue;
+    }
+    let path_dir_exe = match std::env::current_exe() {    //получение пути к исплнительной директории
+        Ok(exe_path) => exe_path,
+        Err(_) => continue,};
+    let a = path_dir_exe.to_str().unwrap().rsplit_once("\\").expect("/ not found");
+    let config = format!("{}{}",a.0,"\\CMD.config");
+    let command_cmd:String;
+    if configs(&config) == true {
+    command_cmd = readfile(&config);
+    } else {
+        command_cmd = command();
+    };
+    //println!("{}",m);
+    let f = format!("\"psexec \\\\{} powershell -NoExit {}\"",name_pc,command_cmd);
+    if psexec(&m) == true{
+        Command::new("powershell")
+        .args(["Start-Process", "-FilePath", "\"powershell.exe\"", "-ArgumentList"]).arg(f)
+        .spawn().expect("failed to execute process");
+    } else {
+        continue;
+    };
+    }
+}
+fn command () -> String {
+    let mut sv = String::new();
+        io::stdin()
+        .read_line(&mut sv)
+        .expect("Failed to read line");
+    sv
+}
+fn configs (string: &String) -> bool{
+    let mut check = std::path::Path::new(string).exists();
+    if check == true {
+        check
+    } else {
+        let file = File::create(string);
+        match file {
+            Ok(mut file1) =>{
+                println!("Файл конфигигурации создан");
+                match file1.write_all(b"gpupdate /force") {
+                    Ok(())=>check=true,
+                    Err(e)=>{
+                        println!("{}",e);
+                        check = false
+                    },
+                }
+                file1},
+            Err(e)=>{
+                println!("{}",e);
+                check = false;
+                return check
+            },
+        };
+        check
+    }
+}
+fn psexec(path: &String) -> bool{   
+    let mut check = std::path::Path::new(path).exists();
+
+    if check == true {
+        //print!("{} ", check);
+    check 
+    } else {
+    let f = fs::copy("C:\\Windows\\psexec.exe", path);
+    match f {
+        Err(e)=>(println!("{:?}",e), check = false),
+        _ => (println!("Файл успешно скопирован на ПК"),check = true),
+        };
+    check
+    }
+}
+fn readfile(file_path: &String)->String{ //читаем документ полученный по сыллке и получаем вектор, который затем отправлем в выбощик
+    println!("In file {}", file_path);
+    let contents = fs::read_to_string(file_path)
+        .expect("Should have been able to read the file");
+    //println!("With text:\n{contents}");
+    let mut vec: Vec<String> = contents.split("\n").map(|s|s.into()).collect();
+    vec.push(String::from("Своя команда"));
+    let comand = choice(&vec);
+    comand
+    
+}
+fn choice (vec: &Vec<String>)-> String{ //выборка одного элемента из вектора и возращение строки string
+    let comand:String;
+    loop {
+
+        for i in 0..(vec.len()) {
+
+            println!("{}\t{}", i+1, vec[i]);
+
+        }
+        println!("Выберите команду:");
+        let mut guess = String::new();
+        io::stdin()
+            .read_line(&mut guess)
+            .expect("Failed to read line");
+        let guess: usize = match guess.trim().parse() {
+            Ok(num) => num,
+            Err(_) => continue,
+        };
+        println!("Вы выбрали: {guess}");
+        if guess <= vec.len() &&  guess !=0{
+            if guess == vec.len(){
+                
+                comand = command();
+                break comand;
+            }
+            comand = vec[guess-1].clone();
+            break comand;
+        };
+    }
+}
